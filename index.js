@@ -39,15 +39,42 @@ app.get("/", async (req, res) => {
 //INSERT new country
 app.post("/add", async (req, res) => {
   const request = capitalize(req.body.country.toLowerCase().trim());
-  const result = await db.query("SELECT country_code FROM countries  WHERE country_name = $1", [request]);
+
+  try{
+    const result = await db.query(
+      "SELECT country_code FROM countries WHERE country_name LIKE '%' || $1 || '%'; ", 
+      [request]
+    );
   
-  if(result.rows.length !== 0){
     const data = result.rows[0];
     const new_country_code = data.country_code;
-    await db.query("INSERT INTO visited_countries (country_code) VALUES ($1)", [new_country_code]);
+
+    try{
+    await db.query(
+      "INSERT INTO visited_countries (country_code) VALUES ($1)", 
+      [new_country_code]
+    );
+    res.redirect("/");
+    } catch (err) {
+      console.log(err);
+      const countries = await checkVisisted();
+      res.render("index.ejs", {
+        countries: countries, 
+        total: countries.length,
+        error: "This country has already added!"
+      });
+    }
+  } catch (err) {
+    console.log(err);
+    const countries = await checkVisisted();
+    res.render("index.ejs", {
+      countries: countries, 
+      total: countries.length,
+      error: "No such country name!"
+    });
   }
 
-  res.redirect("/");
+  
 });
 
 app.listen(port, () => {
